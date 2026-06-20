@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken, triggerSessionExpired, isAuthError } from './auth';
 
 const API_BASE_URL = 'http://localhost:3000/api/v1';
 
@@ -10,12 +11,27 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   if (token) {
     config.headers.Authorization = token;
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const message = error.response?.data?.message as string | undefined;
+    const requestUrl = error.config?.url as string | undefined;
+
+    if (status && isAuthError(status, message, requestUrl)) {
+      triggerSessionExpired();
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export interface Content {
   _id: string;
@@ -58,8 +74,19 @@ export const deleteContent = async (contentId: string) => {
   return response.data;
 };
 
+export interface ShareStatus {
+  shared: boolean;
+  hash: string | null;
+  createdAt: string | null;
+}
+
 export const shareBrain = async (share: boolean) => {
   const response = await api.post('/brain/share', { share });
+  return response.data as { hash?: string; message?: string };
+};
+
+export const getShareStatus = async (): Promise<ShareStatus> => {
+  const response = await api.get('/brain/share/status');
   return response.data;
 };
 

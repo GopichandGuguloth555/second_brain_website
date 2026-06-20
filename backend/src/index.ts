@@ -53,9 +53,11 @@ app.post('/api/v1/login', async(req,res) => {
 
     if(existingUser)
     {
-        const token = jwt.sign({
-            id: existingUser._id
-        },JWTSECRET);
+        const token = jwt.sign(
+            { id: existingUser._id },
+            JWTSECRET,
+            { expiresIn: '24h' }
+        );
 
         res.json({
             token
@@ -104,12 +106,22 @@ app.get('/api/v1/viewContent', userMiddleware, async (req, res) => {
 app.delete("/api/v1/deleteContent", userMiddleware, async (req, res) => {
   const contentId = req.body.contentId;
 
+  if (!contentId) {
+    res.status(400).json({ message: "Content ID is required" });
+    return;
+  }
+
   try {
-    await contentModel.deleteOne({
-      contentId,
+    const result = await contentModel.deleteOne({
+      _id: contentId,
       // @ts-ignore
       userId: req.userId,
     });
+
+    if (result.deletedCount === 0) {
+      res.status(404).json({ message: "Content not found" });
+      return;
+    }
 
     res.status(200).json({ message: "Content deleted successfully" });
   } catch (err) {
@@ -142,7 +154,7 @@ app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
         });
 
         res.json({
-           message: hash
+            hash
         });
     } else {
         await linkModel.deleteOne({
@@ -156,6 +168,24 @@ app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
     }
 });
 
+app.get("/api/v1/brain/share/status", userMiddleware, async (req, res) => {
+    const existingLink = await linkModel.findOne({
+        //@ts-ignore
+        userId: req.userId
+    });
+
+    if (!existingLink) {
+        res.json({ shared: false, hash: null, createdAt: null });
+        return;
+    }
+
+    res.json({
+        shared: true,
+        hash: existingLink.hash,
+        createdAt: existingLink.createdAt
+    });
+});
+
 
 app.get("/api/v1/brain/:sharelink", async (req,res)=>{
 
@@ -165,35 +195,32 @@ app.get("/api/v1/brain/:sharelink", async (req,res)=>{
          hash
     });
 
-    if(!link)
-    {
-        res.status(411).json({
-            message:"Sorry Incoorect Input!"
+    if (!link) {
+        res.status(404).json({
+            message: "Invalid or expired share link"
         });
-        return
-    }
-  
-        const content = await contentModel.find({
-        userId: link.userId
-        });
-    
-
-    const user = await userModel.findOne({
-            _id : link?.userId
-    })
-
-    if(!user)
-    {
-        res.send(411).json({
-            message: "User Not Found!"
-        })
         return;
     }
+
+    const user = await userModel.findOne({
+        _id: link.userId
+    });
+
+    if (!user) {
+        res.status(404).json({
+            message: "User not found"
+        });
+        return;
+    }
+
+    const content = await contentModel.find({
+        userId: link.userId
+    });
 
     res.json({
         userName: user.userName,
         content: content
-    })
+    });
     
 })
 

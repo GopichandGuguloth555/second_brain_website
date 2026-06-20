@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Share2, LogOut, Link as LinkIcon, FileText, Video, X, Copy, Check } from 'lucide-react';
-import { viewContent, createContent, deleteContent, shareBrain} from '../lib/api';
+import { Link } from 'react-router-dom';
+import { Plus, Share2, LogOut, Link as LinkIcon, FileText, Video, X, Copy, Check, History } from 'lucide-react';
+import { viewContent, createContent, deleteContent, shareBrain } from '../lib/api';
 import type { Content } from '../lib/api';
 import { ContentCard } from './ContentCard';
+import { getLinkPlaceholder, LinkedInIcon, InstagramIcon, TwitterIcon } from '../lib/contentTypes';
+import { AppNav, LoadingPage, LoadingOverlay, PageShell, DarkCard, ModalOverlay, btnOutline, btnPrimary, btnDanger, inputDark } from './ui/theme';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -11,10 +14,12 @@ interface DashboardProps {
 export const Dashboard = ({ onLogout }: DashboardProps) => {
   const [contents, setContents] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [shareHash, setShareHash] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
 
   const [newContent, setNewContent] = useState({
     title: '',
@@ -30,8 +35,8 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
     try {
       const data = await viewContent();
       setContents(data.content);
-    } catch (error) {
-      console.error('Failed to fetch contents:', error);
+    } catch {
+      setError('Failed to load content. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -39,32 +44,43 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
 
   const handleAddContent = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActionLoading('Adding content...');
+    setError('');
     try {
       await createContent(newContent.title, newContent.link, newContent.type);
       setNewContent({ title: '', link: '', type: 'youtube' });
       setShowAddModal(false);
-      fetchContents();
-    } catch (error) {
-      console.error('Failed to add content:', error);
+      setActionLoading('Refreshing...');
+      await fetchContents();
+    } catch {
+      setError('Failed to add content. Please try again.');
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleDeleteContent = async (contentId: string) => {
+    setActionLoading('Deleting content...');
     try {
       await deleteContent(contentId);
-      fetchContents();
-    } catch (error) {
-      console.error('Failed to delete content:', error);
+      setContents((prev) => prev.filter((c) => c._id !== contentId));
+    } catch {
+      setError('Failed to delete content. Please try again.');
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleShareBrain = async () => {
+    setActionLoading('Creating share link...');
     try {
       const response = await shareBrain(true);
-      setShareHash(response.hash || response.message);
+      setShareHash(response.hash || response.message || null);
       setShowShareModal(true);
-    } catch (error) {
-      console.error('Failed to share brain:', error);
+    } catch {
+      setError('Failed to create share link. Please try again.');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -75,86 +91,89 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const handleLogout = () => {
+    setActionLoading('Logging out...');
+    onLogout();
+  };
+
+  if (loading) return <LoadingPage message="Loading your brain..." />;
+
+  const typeBtn = (type: string, active: boolean, activeClass: string, icon: React.ReactNode, label: string) => (
+    <button
+      type="button"
+      onClick={() => setNewContent({ ...newContent, type })}
+      className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2.5 rounded-lg border transition-all text-xs sm:text-sm ${
+        active
+          ? activeClass
+          : 'border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-white'
+      }`}
+    >
+      {icon}
+      <span className="font-medium">{label}</span>
+    </button>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <nav className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-              My Second Brain
-            </h1>
-            <div className="flex items-center gap-3 flex-wrap justify-center">
-              <button
-                onClick={handleShareBrain}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 text-slate-200 rounded-lg hover:bg-slate-700 transition-all border border-slate-600"
-              >
-                <Share2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Share</span>
-              </button>
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/20"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Content</span>
-              </button>
-              <button
-                onClick={onLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-all border border-red-500/30"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <PageShell>
+      <LoadingOverlay show={!!actionLoading} message={actionLoading || 'Please wait...'} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <AppNav title="My Second Brain" subtitle="Your personal dashboard">
+        <Link to="/share-history" className={btnOutline}>
+          <History className="w-4 h-4" />
+          <span className="hidden sm:inline">Share History</span>
+        </Link>
+        <button onClick={handleShareBrain} disabled={!!actionLoading} className={btnOutline}>
+          <Share2 className="w-4 h-4" />
+          <span className="hidden sm:inline">Share</span>
+        </button>
+        <button onClick={() => setShowAddModal(true)} disabled={!!actionLoading} className={btnPrimary}>
+          <Plus className="w-4 h-4" />
+          <span>Add Content</span>
+        </button>
+        <button onClick={handleLogout} disabled={!!actionLoading} className={btnDanger}>
+          <LogOut className="w-4 h-4" />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
+      </AppNav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex justify-between items-center gap-4">
+            <span>{error}</span>
+            <button onClick={() => setError('')} className="text-red-300 hover:text-white shrink-0">Dismiss</button>
+          </div>
+        )}
+
         {contents.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-800/50 rounded-full mb-4">
-              <FileText className="w-10 h-10 text-slate-600" />
+          <div className="text-center py-16 sm:py-20">
+            <div className="inline-flex items-center justify-center w-16 sm:w-20 h-16 sm:h-20 bg-violet-500/10 border border-violet-500/20 rounded-full mb-4">
+              <FileText className="w-8 sm:w-10 h-8 sm:h-10 text-violet-400" />
             </div>
-            <h2 className="text-2xl font-semibold text-slate-300 mb-2">No content yet</h2>
-            <p className="text-slate-500 mb-6">Start building your second brain by adding content</p>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/20"
-            >
+            <h2 className="text-xl sm:text-2xl font-semibold text-white mb-2">No content yet</h2>
+            <p className="text-zinc-400 mb-6 px-4">Start building your second brain by adding content</p>
+            <button onClick={() => setShowAddModal(true)} className={`${btnPrimary} px-6 py-3 mx-auto`}>
               <Plus className="w-5 h-5" />
               Add Your First Content
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {contents.map((content) => (
-              <ContentCard
-                key={content._id}
-                content={content}
-                onDelete={handleDeleteContent}
-              />
+              <ContentCard key={content._id} content={content} onDelete={handleDeleteContent} />
             ))}
           </div>
         )}
       </main>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-slate-800 rounded-2xl max-w-md w-full p-6 border border-slate-700 my-8">
+        <ModalOverlay onClose={() => !actionLoading && setShowAddModal(false)} closeOnBackdrop={!actionLoading}>
+          <DarkCard className="max-w-lg w-full p-4 sm:p-6 my-4 sm:my-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">Add Content</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Add Content</h2>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all"
+                disabled={!!actionLoading}
+                className="p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-all disabled:opacity-50"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -162,168 +181,106 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
 
             <form onSubmit={handleAddContent} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-3">
-                  Content Type
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNewContent({ ...newContent, type: 'youtube' })}
-                    className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                      newContent.type === 'youtube'
-                        ? 'border-red-500 bg-red-500/10 text-red-400'
-                        : 'border-slate-600 bg-slate-900/50 text-slate-400 hover:border-slate-500'
-                    }`}
-                  >
-                    <Video className="w-5 h-5" />
-                    <span className="font-medium">YouTube</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewContent({ ...newContent, type: 'twitter' })}
-                    className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                      newContent.type === 'twitter'
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                        : 'border-slate-600 bg-slate-900/50 text-slate-400 hover:border-slate-500'
-                    }`}
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                    <span className="font-medium">Twitter</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewContent({ ...newContent, type: 'link' })}
-                    className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                      newContent.type === 'link'
-                        ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400'
-                        : 'border-slate-600 bg-slate-900/50 text-slate-400 hover:border-slate-500'
-                    }`}
-                  >
-                    <LinkIcon className="w-5 h-5" />
-                    <span className="font-medium">Link</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewContent({ ...newContent, type: 'note' })}
-                    className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                      newContent.type === 'note'
-                        ? 'border-green-500 bg-green-500/10 text-green-400'
-                        : 'border-slate-600 bg-slate-900/50 text-slate-400 hover:border-slate-500'
-                    }`}
-                  >
-                    <FileText className="w-5 h-5" />
-                    <span className="font-medium">Note</span>
-                  </button>
+                <label className="block text-sm font-medium text-zinc-300 mb-3">Content Type</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {typeBtn('youtube', newContent.type === 'youtube', 'border-red-500/50 bg-red-500/10 text-red-400', <Video className="w-4 h-4" />, 'YouTube')}
+                  {typeBtn('twitter', newContent.type === 'twitter', 'border-sky-500/50 bg-sky-500/10 text-sky-400', <TwitterIcon className="w-4 h-4" />, 'Twitter')}
+                  {typeBtn('linkedin', newContent.type === 'linkedin', 'border-blue-500/50 bg-blue-500/10 text-blue-400', <LinkedInIcon className="w-4 h-4" />, 'LinkedIn')}
+                  {typeBtn('instagram', newContent.type === 'instagram', 'border-pink-500/50 bg-pink-500/10 text-pink-400', <InstagramIcon className="w-4 h-4" />, 'Instagram')}
+                  {typeBtn('link', newContent.type === 'link', 'border-violet-500/50 bg-violet-500/10 text-violet-400', <LinkIcon className="w-4 h-4" />, 'Link')}
+                  {typeBtn('note', newContent.type === 'note', 'border-purple-500/50 bg-purple-500/10 text-purple-400', <FileText className="w-4 h-4" />, 'Note')}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Title
-                </label>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Title</label>
                 <input
                   type="text"
                   value={newContent.title}
                   onChange={(e) => setNewContent({ ...newContent, title: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                  className={inputDark}
                   placeholder="Enter title"
                   required
+                  disabled={!!actionLoading}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-zinc-300 mb-2">
                   {newContent.type === 'note' ? 'Content' : 'Link'}
                 </label>
                 {newContent.type === 'note' ? (
                   <textarea
                     value={newContent.link}
                     onChange={(e) => setNewContent({ ...newContent, link: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all resize-none"
+                    className={`${inputDark} resize-none`}
                     placeholder="Write your note here..."
                     rows={4}
                     required
+                    disabled={!!actionLoading}
                   />
                 ) : (
                   <input
-                    type={newContent.type === 'note' ? 'text' : 'url'}
+                    type="text"
                     value={newContent.link}
                     onChange={(e) => setNewContent({ ...newContent, link: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
-                    placeholder={
-                      newContent.type === 'youtube'
-                        ? 'https://youtube.com/watch?v=...'
-                        : newContent.type === 'twitter'
-                        ? 'https://twitter.com/user/status/...'
-                        : 'https://example.com'
-                    }
+                    className={inputDark}
+                    placeholder={getLinkPlaceholder(newContent.type)}
                     required
+                    disabled={!!actionLoading}
                   />
                 )}
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-3 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-all"
-                >
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button type="button" onClick={() => setShowAddModal(false)} disabled={!!actionLoading} className={`flex-1 ${btnOutline} justify-center py-3`}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/20"
-                >
+                <button type="submit" disabled={!!actionLoading} className={`flex-1 ${btnPrimary} justify-center py-3 disabled:opacity-50`}>
                   Add Content
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </DarkCard>
+        </ModalOverlay>
       )}
 
       {showShareModal && shareHash && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-2xl max-w-md w-full p-6 border border-slate-700">
+        <ModalOverlay onClose={() => setShowShareModal(false)}>
+          <DarkCard className="max-w-md w-full p-4 sm:p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">Share Your Brain</h2>
-              <button
-                onClick={() => setShowShareModal(false)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all"
-              >
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Share Your Brain</h2>
+              <button onClick={() => setShowShareModal(false)} className="p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-all">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-slate-400 mb-4">
+            <p className="text-zinc-400 mb-4 text-sm">
               Share this link with anyone to let them view your content collection
             </p>
 
-            <div className="bg-slate-900/50 border border-slate-600 rounded-lg p-4 mb-4">
-              <p className="text-sm text-slate-300 break-all">
+            <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-4">
+              <p className="text-sm text-violet-300 break-all font-mono">
                 {window.location.origin}/brain/{shareHash}
               </p>
             </div>
 
-            <button
-              onClick={handleCopyLink}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/20"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-5 h-5" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-5 h-5" />
-                  Copy Link
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/share-history"
+                onClick={() => setShowShareModal(false)}
+                className={`flex-1 ${btnOutline} justify-center py-3`}
+              >
+                <History className="w-4 h-4" />
+                View History
+              </Link>
+              <button onClick={handleCopyLink} className={`flex-1 ${btnPrimary} justify-center py-3`}>
+                {copied ? <><Check className="w-5 h-5" />Copied!</> : <><Copy className="w-5 h-5" />Copy Link</>}
+              </button>
+            </div>
+          </DarkCard>
+        </ModalOverlay>
       )}
-    </div>
+    </PageShell>
   );
 };

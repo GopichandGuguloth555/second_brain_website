@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { LogIn, UserPlus, Brain } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { LogIn, UserPlus, Brain, ArrowLeft } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { login, signup } from '../lib/api';
+import { PageShell, DarkCard, inputDark, LoadingOverlay } from './ui/theme';
 
 interface AuthFormProps {
   onLogin: (token: string) => void;
@@ -8,7 +11,8 @@ interface AuthFormProps {
 }
 
 export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
-  const [isLogin, setIsLogin] = useState(mode === 'login');
+  const navigate = useNavigate();
+  const isLogin = mode === 'login';
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,119 +24,118 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
     setLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/v1/${isLogin ? 'login' : 'signup'}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userName, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Authentication failed');
-      }
-
       if (isLogin) {
+        const data = await login(userName, password);
         onLogin(data.token);
+        navigate('/dashboard');
       } else {
-        setIsLogin(true);
-        setError('');
-        setPassword('');
+        await signup(userName, password);
+        const data = await login(userName, password);
+        onLogin(data.token);
+        navigate('/dashboard');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.message || 'Something went wrong');
+      } else {
+        setError('Something went wrong');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl mb-4 shadow-lg shadow-cyan-500/20">
-            <Brain className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Second Brain</h1>
-          <p className="text-slate-400">Your personal knowledge repository</p>
-        </div>
+    <PageShell>
+      <LoadingOverlay show={loading} message={isLogin ? 'Logging in...' : 'Creating your account...'} />
 
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-slate-700">
-          <div className="flex gap-2 mb-6">
-            <Link
-              to="/login"
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all text-center ${
-                isLogin
-                  ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20'
-                  : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
-              }`}
-            >
-              Login
-            </Link>
-            <Link
-              to="/signup"
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all text-center ${
-                !isLogin
-                  ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20'
-                  : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
-              }`}
-            >
-              Sign Up
-            </Link>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white mb-6 sm:mb-8 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to home
+          </Link>
+
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="inline-flex items-center justify-center w-14 sm:w-16 h-14 sm:h-16 bg-gradient-to-br from-violet-500 to-purple-700 rounded-2xl mb-4 glow-violet-sm">
+              <Brain className="w-7 sm:w-8 h-7 sm:h-8 text-white" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Second Brain</h1>
+            <p className="text-zinc-400 text-sm sm:text-base">Your personal knowledge repository</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
-                placeholder="Enter your username"
-                required
-              />
+          <DarkCard className="p-6 sm:p-8">
+            <div className="flex gap-2 mb-6">
+              <Link
+                to="/login"
+                className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-center text-sm ${
+                  isLogin
+                    ? 'btn-gradient text-white'
+                    : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-center text-sm ${
+                  !isLogin
+                    ? 'btn-gradient text-white'
+                    : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Sign Up
+              </Link>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
-                {error}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Username</label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  className={inputDark}
+                  placeholder="Enter your username"
+                  required
+                  disabled={loading}
+                />
               </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  {isLogin ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                  {isLogin ? 'Login' : 'Sign Up'}
-                </>
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={inputDark}
+                  placeholder="Enter your password"
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">
+                  {error}
+                </div>
               )}
-            </button>
-          </form>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-gradient text-white py-3 px-4 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isLogin ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                {isLogin ? 'Login' : 'Sign Up'}
+              </button>
+            </form>
+          </DarkCard>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 };

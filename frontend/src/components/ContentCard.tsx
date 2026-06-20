@@ -1,4 +1,14 @@
-import { X, ExternalLink, Video, FileText, Link as LinkIcon } from 'lucide-react';
+import { useState } from 'react';
+import { ExternalLink, Video, FileText, Link as LinkIcon, Trash2, AlertTriangle } from 'lucide-react';
+import {
+  getYouTubeEmbedUrl,
+  getInstagramEmbedUrl,
+  getLinkedInEmbedUrl,
+  LinkedInIcon,
+  InstagramIcon,
+  TwitterIcon,
+} from '../lib/contentTypes';
+import { DarkCard, btnOutline, btnDanger } from './ui/theme';
 
 interface ContentCardProps {
   content: {
@@ -7,26 +17,23 @@ interface ContentCardProps {
     link: string;
     type: string;
   };
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => Promise<void> | void;
 }
 
 export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
-  const getYouTubeEmbedUrl = (url: string) => {
-    const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1];
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
-  };
-
-  const getTwitterEmbedUrl = (url: string) => {
-    const tweetId = url.match(/status\/(\d+)/)?.[1];
-    return tweetId;
-  };
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const getTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {
       case 'youtube':
         return <Video className="w-5 h-5 text-white" />;
       case 'twitter':
-        return <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>;
+        return <TwitterIcon className="w-5 h-5 text-white" />;
+      case 'linkedin':
+        return <LinkedInIcon className="w-5 h-5 text-white" />;
+      case 'instagram':
+        return <InstagramIcon className="w-5 h-5 text-white" />;
       case 'note':
         return <FileText className="w-5 h-5 text-white" />;
       default:
@@ -37,13 +44,17 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
   const getTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
       case 'youtube':
-        return 'from-red-500 to-pink-500';
+        return 'from-red-500/80 to-pink-600/80';
       case 'twitter':
-        return 'from-blue-500 to-cyan-500';
+        return 'from-sky-500/80 to-blue-600/80';
+      case 'linkedin':
+        return 'from-blue-600/80 to-blue-800/80';
+      case 'instagram':
+        return 'from-pink-500/80 to-purple-600/80';
       case 'note':
-        return 'from-green-500 to-emerald-500';
+        return 'from-violet-500/80 to-purple-600/80';
       default:
-        return 'from-cyan-500 to-blue-500';
+        return 'from-violet-600/80 to-purple-700/80';
     }
   };
 
@@ -53,89 +64,185 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
         const embedUrl = getYouTubeEmbedUrl(content.link);
         if (embedUrl) {
           return (
-            <div className="relative w-full h-48 bg-slate-900 rounded-lg overflow-hidden mb-4">
+            <div className="relative w-full h-48 bg-black/40 rounded-lg overflow-hidden mb-4 border border-white/10">
               <iframe
                 src={embedUrl}
                 className="w-full h-full"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
+                title={content.title || 'YouTube video'}
               />
             </div>
           );
         }
         break;
       }
-      case 'twitter': {
-        const tweetId = getTwitterEmbedUrl(content.link);
-        if (tweetId) {
+      case 'instagram': {
+        const embedUrl = getInstagramEmbedUrl(content.link);
+        if (embedUrl) {
           return (
-            <div className="relative w-full bg-slate-900 rounded-lg p-4 mb-4">
-              <p className="text-slate-400 text-sm">Twitter Post</p>
-              <a
-                href={content.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-1 mt-2"
-              >
-                View on Twitter <ExternalLink className="w-3 h-3" />
-              </a>
+            <div className="relative w-full h-64 sm:h-80 bg-black/40 rounded-lg overflow-hidden mb-4 border border-white/10">
+              <iframe
+                src={embedUrl}
+                className="w-full h-full"
+                allowFullScreen
+                title={content.title || 'Instagram post'}
+              />
             </div>
           );
         }
         break;
       }
+      case 'linkedin': {
+        const embedUrl = getLinkedInEmbedUrl(content.link);
+        if (embedUrl) {
+          return (
+            <div className="relative w-full h-72 sm:h-96 bg-black/40 rounded-lg overflow-hidden mb-4 border border-white/10">
+              <iframe
+                src={embedUrl}
+                className="w-full h-full"
+                allowFullScreen
+                title={content.title || 'LinkedIn post'}
+              />
+            </div>
+          );
+        }
+        return (
+          <div className="relative w-full bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
+            <p className="text-zinc-400 text-sm">LinkedIn Post</p>
+            <a
+              href={content.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-violet-400 hover:text-violet-300 text-sm flex items-center gap-1 mt-2"
+            >
+              View on LinkedIn <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        );
+      }
+      case 'twitter':
+        return (
+          <div className="relative w-full bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
+            <p className="text-zinc-400 text-sm">Twitter Post</p>
+            <a
+              href={content.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-violet-400 hover:text-violet-300 text-sm flex items-center gap-1 mt-2"
+            >
+              View on Twitter <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        );
       case 'note':
         return (
-          <div className="bg-slate-900/50 rounded-lg p-4 mb-4 border border-slate-700">
-            <p className="text-slate-300 text-sm whitespace-pre-wrap line-clamp-6">{content.link}</p>
+          <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
+            <p className="text-zinc-300 text-sm whitespace-pre-wrap line-clamp-6">{content.link}</p>
           </div>
         );
     }
     return null;
   };
 
+  const handleConfirmDelete = async () => {
+    if (!onDelete) return;
+    setDeleting(true);
+    try {
+      await onDelete(content._id);
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6 hover:border-slate-600 transition-all group">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 bg-gradient-to-br ${getTypeColor(content.type)} rounded-lg shadow-lg`}>
-          {getTypeIcon(content.type)}
+    <>
+      <div className="bg-white/[0.03] rounded-xl border border-white/10 p-4 sm:p-6 hover:border-violet-500/30 hover:bg-violet-500/5 transition-all group">
+        <div className="flex items-start justify-between mb-4 gap-2">
+          <div className={`p-3 bg-gradient-to-br ${getTypeColor(content.type)} rounded-lg shadow-sm border border-white/10 shrink-0`}>
+            {getTypeIcon(content.type)}
+          </div>
+          {onDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/20 hover:text-red-300 transition-all"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => onDelete(content._id)}
-          className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
 
-      {renderContent()}
+        {renderContent()}
 
-      <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">
-        {content.title || 'Untitled'}
-      </h3>
+        <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">
+          {content.title || 'Untitled'}
+        </h3>
 
-      {content.type !== 'note' && (
-        <p className="text-sm text-slate-400 mb-4 line-clamp-2 break-all">
-          {content.link}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-500 bg-slate-700/50 px-3 py-1 rounded-full">
-          {content.type}
-        </span>
         {content.type !== 'note' && (
-          <a
-            href={content.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition-colors text-sm"
-          >
-            Open
-            <ExternalLink className="w-3 h-3" />
-          </a>
+          <p className="text-sm text-zinc-500 mb-4 line-clamp-2 break-all">
+            {content.link}
+          </p>
         )}
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full capitalize">
+            {content.type}
+          </span>
+          {content.type !== 'note' && (
+            <a
+              href={content.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-violet-400 hover:text-violet-300 transition-colors text-sm font-medium"
+            >
+              Open
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
       </div>
-    </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <DarkCard className="max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Delete content?</h3>
+            </div>
+            <p className="text-zinc-400 text-sm mb-2">
+              Are you sure you want to delete <span className="text-white font-medium">&quot;{content.title || 'Untitled'}&quot;</span>?
+            </p>
+            <p className="text-zinc-500 text-xs mb-6">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className={`flex-1 ${btnOutline} justify-center py-2.5 disabled:opacity-50`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className={`flex-1 ${btnDanger} justify-center py-2.5 bg-red-500/20 border-red-500/40 disabled:opacity-50`}
+              >
+                {deleting ? (
+                  <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </DarkCard>
+        </div>
+      )}
+    </>
   );
 };
