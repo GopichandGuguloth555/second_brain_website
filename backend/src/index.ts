@@ -1,107 +1,113 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { userModel, contentModel, linkModel } from './db';
-import { JWTSECRET} from './config';
+import { FRONTEND_URL, PORT } from './config';
 import { userMiddleware } from './middlewares';
 import { Random } from './utils';
+import { signToken, seedDemoUser, loginDemoUser, verifyGoogleAndLogin } from './auth';
+import { DEMO_USER_ENABLED, GOOGLE_CLIENT_ID } from './config';
 import cors from "cors";
 
-
-const app=express();
+const app = express();
 app.use(express.json());
 
-
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: FRONTEND_URL,
   credentials: true
 }));
 
-app.post("/api/v1/signup", async (req, res) => { 
-    const userName = req.body.userName;
-    const password = req.body.password;
-
-    try {
-        await userModel.create({
-            userName,
-            password
-        });
-
-        res.json({
-            message: "Signup successful!"
-        });
-    } catch (error) {
-       
-            res.status(400).json({
-                message: "User already exists!"
-            });
-        
-    }
+app.get('/api/v1/auth/config', (_req, res) => {
+  res.json({
+    googleEnabled: Boolean(GOOGLE_CLIENT_ID),
+    demoEnabled: DEMO_USER_ENABLED,
+    sessionExpiryMinutes: 30,
+  });
 });
 
+app.post("/api/v1/signup", async (req, res) => {
+  const userName = req.body.userName;
+  const password = req.body.password;
 
+  if (!userName || !password) {
+    res.status(400).json({ message: "Username and password are required" });
+    return;
+  }
 
-app.post('/api/v1/login', async(req,res) => {
-
-    const userName = req.body.userName;
-    const password = req.body.password;
-
-    const existingUser = await userModel.findOne({
-        userName:userName,
-        password:password
+  try {
+    await userModel.create({
+      userName,
+      password,
+      authProvider: 'local',
     });
 
-    if(existingUser)
-    {
-        const token = jwt.sign(
-            { id: existingUser._id },
-            JWTSECRET,
-            { expiresIn: '24h' }
-        );
-
-        res.json({
-            token
-        })
-
-    }
-    else{
-        res.status(403).json({
-            message: "Invalid Credentials!"
-        });
-    }
-
-
+    res.json({ message: "Signup successful!" });
+  } catch {
+    res.status(400).json({ message: "User already exists!" });
+  }
 });
 
-app.post('/api/v1/createContent', userMiddleware,async (req,res) => {
+app.post('/api/v1/login', async (req, res) => {
+  const userName = req.body.userName;
+  const password = req.body.password;
 
-     const type=req.body.type;
-     const link=req.body.link;
+  const existingUser = await userModel.findOne({ userName, password });
 
-     await contentModel.create({
-        link, 
-        type,
-        title: req.body.title,
-        //@ts-ignore
-        userId: req.userId,
-        tags: []
-     })
+  if (existingUser) {
+    const token = signToken(existingUser._id.toString());
+    res.json({ token });
+    return;
+  }
 
-     res.json({
-        message:"Content Added Sucessfully!"
-     });
-   
+  res.status(403).json({ message: "Invalid Credentials!" });
+});
 
+app.post('/api/v1/auth/google', async (req, res) => {
+  const credential = req.body.credential;
+
+  if (!credential) {
+    res.status(400).json({ message: "Google credential is required" });
+    return;
+  }
+
+  try {
+    const token = await verifyGoogleAndLogin(credential);
+    res.json({ token });
+  } catch {
+    res.status(401).json({ message: "Google authentication failed" });
+  }
+});
+
+app.post('/api/v1/auth/demo', async (_req, res) => {
+  try {
+    const token = await loginDemoUser();
+    res.json({ token });
+  } catch {
+    res.status(403).json({ message: "Demo login is not available" });
+  }
+});
+
+app.post('/api/v1/createContent', userMiddleware, async (req, res) => {
+  const type = req.body.type;
+  const link = req.body.link;
+
+  await contentModel.create({
+    link,
+    type,
+    title: req.body.title,
+    //@ts-ignore
+    userId: req.userId,
+    tags: []
+  });
+
+  res.json({ message: "Content Added Sucessfully!" });
 });
 
 app.get('/api/v1/viewContent', userMiddleware, async (req, res) => {
   //@ts-ignore
   const userId = req.userId;
   const content = await contentModel.find({ userId }).populate('userId', 'userName');
-
   res.json({ content });
 });
-
 
 app.delete("/api/v1/deleteContent", userMiddleware, async (req, res) => {
   const contentId = req.body.contentId;
@@ -124,107 +130,93 @@ app.delete("/api/v1/deleteContent", userMiddleware, async (req, res) => {
     }
 
     res.status(200).json({ message: "Content deleted successfully" });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Deletion failed" });
   }
 });
 
-
 app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
-    const share = req.body.share;
+  const share = req.body.share;
 
-    if (share) {
-        const existingLink = await linkModel.findOne({
-            //@ts-ignore
-            userId: req.userId
-        });
+  if (share) {
+    const existingLink = await linkModel.findOne({
+      //@ts-ignore
+      userId: req.userId
+    });
 
-        if (existingLink) {
-            res.json({
-                hash: existingLink.hash
-            });
-            return;
-        }
-
-        const hash = Random(17);
-        await linkModel.create({
-            //@ts-ignore
-            userId: req.userId,
-            hash: hash
-        });
-
-        res.json({
-            hash
-        });
-    } else {
-        await linkModel.deleteOne({
-            //@ts-ignore
-            userId: req.userId
-        });
-
-        res.json({
-            message: "Shareable link is removed!"
-        });
+    if (existingLink) {
+      res.json({ hash: existingLink.hash });
+      return;
     }
+
+    const hash = Random(17);
+    await linkModel.create({
+      //@ts-ignore
+      userId: req.userId,
+      hash: hash
+    });
+
+    res.json({ hash });
+  } else {
+    await linkModel.deleteOne({
+      //@ts-ignore
+      userId: req.userId
+    });
+
+    res.json({ message: "Shareable link is removed!" });
+  }
 });
 
 app.get("/api/v1/brain/share/status", userMiddleware, async (req, res) => {
-    const existingLink = await linkModel.findOne({
-        //@ts-ignore
-        userId: req.userId
-    });
+  const existingLink = await linkModel.findOne({
+    //@ts-ignore
+    userId: req.userId
+  });
 
-    if (!existingLink) {
-        res.json({ shared: false, hash: null, createdAt: null });
-        return;
-    }
+  if (!existingLink) {
+    res.json({ shared: false, hash: null, createdAt: null });
+    return;
+  }
 
-    res.json({
-        shared: true,
-        hash: existingLink.hash,
-        createdAt: existingLink.createdAt
-    });
+  res.json({
+    shared: true,
+    hash: existingLink.hash,
+    createdAt: existingLink.createdAt
+  });
 });
 
+app.get("/api/v1/brain/:sharelink", async (req, res) => {
+  const hash = req.params.sharelink;
 
-app.get("/api/v1/brain/:sharelink", async (req,res)=>{
+  const link = await linkModel.findOne({ hash });
 
-    const hash = req.params.sharelink;
+  if (!link) {
+    res.status(404).json({ message: "Invalid or expired share link" });
+    return;
+  }
 
-    const link = await linkModel.findOne({
-         hash
-    });
+  const user = await userModel.findOne({ _id: link.userId });
 
-    if (!link) {
-        res.status(404).json({
-            message: "Invalid or expired share link"
-        });
-        return;
-    }
+  if (!user) {
+    res.status(404).json({ message: "User not found" });
+    return;
+  }
 
-    const user = await userModel.findOne({
-        _id: link.userId
-    });
+  const content = await contentModel.find({ userId: link.userId });
 
-    if (!user) {
-        res.status(404).json({
-            message: "User not found"
-        });
-        return;
-    }
+  res.json({
+    userName: user.userName,
+    content: content
+  });
+});
 
-    const content = await contentModel.find({
-        userId: link.userId
-    });
+async function start() {
+  await seedDemoUser();
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    if (DEMO_USER_ENABLED) console.log('Demo user enabled');
+    if (GOOGLE_CLIENT_ID) console.log('Google login enabled');
+  });
+}
 
-    res.json({
-        userName: user.userName,
-        content: content
-    });
-    
-})
-
-
-
-app.listen(3000);
-console.log("The Server is Running On The Port 3000");
+start();

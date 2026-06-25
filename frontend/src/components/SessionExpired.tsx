@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, LogIn, Brain } from 'lucide-react';
+import { Clock, LogIn, Brain, Shield } from 'lucide-react';
 import { clearToken } from '../lib/auth';
 import { PageShell, DarkCard, btnPrimary } from './ui/theme';
 
@@ -34,12 +34,17 @@ export const SessionExpired = () => {
             Session Expired
           </h1>
 
-          <p className="text-zinc-400 mb-2 leading-relaxed">
-            Your session has ended for security reasons. Please log in again to continue using Second Brain.
+          <p className="text-zinc-400 mb-3 leading-relaxed text-sm sm:text-base">
+            Your 30-minute session has ended for security. Visiting the home page also signs you out — please log in again to access your dashboard.
           </p>
 
+          <div className="flex items-center justify-center gap-2 text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 rounded-lg px-4 py-2 mb-6">
+            <Shield className="w-4 h-4 shrink-0" />
+            <span>Protected routes require a fresh login</span>
+          </div>
+
           <p className="text-sm text-violet-400 mb-8">
-            Redirecting to login in <span className="font-semibold text-white">{countdown}</span> seconds…
+            Redirecting to login in <span className="font-semibold text-white">{countdown}</span>s…
           </p>
 
           <button
@@ -47,7 +52,7 @@ export const SessionExpired = () => {
             className={`${btnPrimary} w-full justify-center py-3`}
           >
             <LogIn className="w-5 h-5" />
-            Log In Now
+            Log In Again
           </button>
 
           <button

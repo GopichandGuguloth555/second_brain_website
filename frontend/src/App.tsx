@@ -1,95 +1,37 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
 import { SharedBrain } from './components/ShareBrain';
 import { ShareHistory } from './components/ShareHistory';
 import { SessionExpired } from './components/SessionExpired';
-import { LoadingPage } from './components/ui/Loading';
-import {
-  getValidToken,
-  setToken as saveToken,
-  clearToken,
-  isTokenExpired,
-  setSessionExpiredHandler,
-} from './lib/auth';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 function AppRoutes() {
-  const navigate = useNavigate();
-  const [token, setToken] = useState<string | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-
-  useEffect(() => {
-    const validToken = getValidToken();
-    setToken(validToken);
-    setAuthReady(true);
-
-    setSessionExpiredHandler(() => {
-      setToken(null);
-      navigate('/session-expired', { replace: true });
-    });
-  }, [navigate]);
-
-  const handleLogin = (newToken: string) => {
-    saveToken(newToken);
-    setToken(newToken);
-  };
-
-  const handleLogout = () => {
-    clearToken();
-    setToken(null);
-    navigate('/', { replace: true });
-  };
-
-  const isValidSession = token !== null && !isTokenExpired(token);
-
-  if (!authReady) {
-    return <LoadingPage message="Starting Second Brain..." />;
-  }
+  const { login, logout } = useAuth();
 
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route
-        path="/login"
-        element={
-          isValidSession ? (
-            <Navigate to="/dashboard" replace />
-          ) : (
-            <AuthForm onLogin={handleLogin} mode="login" />
-          )
-        }
-      />
-      <Route
-        path="/signup"
-        element={
-          isValidSession ? (
-            <Navigate to="/dashboard" replace />
-          ) : (
-            <AuthForm onLogin={handleLogin} mode="signup" />
-          )
-        }
-      />
+      <Route path="/login" element={<AuthForm onLogin={login} mode="login" />} />
+      <Route path="/signup" element={<AuthForm onLogin={login} mode="signup" />} />
       <Route path="/session-expired" element={<SessionExpired />} />
       <Route
         path="/dashboard"
         element={
-          isValidSession ? (
-            <Dashboard onLogout={handleLogout} />
-          ) : (
-            <Navigate to={token && isTokenExpired(token) ? '/session-expired' : '/login'} replace />
-          )
+          <ProtectedRoute>
+            <Dashboard onLogout={logout} />
+          </ProtectedRoute>
         }
       />
       <Route
         path="/share-history"
         element={
-          isValidSession ? (
-            <ShareHistory onLogout={handleLogout} />
-          ) : (
-            <Navigate to={token && isTokenExpired(token) ? '/session-expired' : '/login'} replace />
-          )
+          <ProtectedRoute>
+            <ShareHistory onLogout={logout} />
+          </ProtectedRoute>
         }
       />
       <Route path="/brain/:sharelink" element={<SharedBrain />} />
@@ -99,10 +41,24 @@ function AppRoutes() {
 }
 
 function App() {
-  return (
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
+  const content = (
     <BrowserRouter>
-      <AppRoutes />
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
+  );
+
+  if (!googleClientId) {
+    return content;
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={googleClientId}>
+      {content}
+    </GoogleOAuthProvider>
   );
 }
 

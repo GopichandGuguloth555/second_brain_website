@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { ExternalLink, Video, FileText, Link as LinkIcon, Trash2, AlertTriangle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ExternalLink, Video, FileText, Link as LinkIcon, Trash2, AlertTriangle, X } from 'lucide-react';
 import {
   getYouTubeEmbedUrl,
+  getTwitterEmbedUrl,
   getInstagramEmbedUrl,
   getLinkedInEmbedUrl,
+  getOpenUrl,
+  getDisplayLink,
+  isEmbedHtml,
   LinkedInIcon,
   InstagramIcon,
   TwitterIcon,
 } from '../lib/contentTypes';
+import { EmbedFrame } from './EmbedFrame';
 import { DarkCard, btnOutline, btnDanger } from './ui/theme';
 
 interface ContentCardProps {
@@ -23,6 +28,13 @@ interface ContentCardProps {
 export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+
+  const openUrl = getOpenUrl(content.link);
+  const displayLink = getDisplayLink(content.link);
+  const hideRawLink = content.type !== 'note' && isEmbedHtml(content.link);
+  const isNote = content.type.toLowerCase() === 'note';
+  const noteText = useMemo(() => (isNote ? content.link : ''), [content.link, isNote]);
 
   const getTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -58,91 +70,60 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
     }
   };
 
+  const renderFallback = (label: string) => (
+    <div className="relative w-full bg-white/5 rounded-lg p-4 mb-4 border border-amber-500/20">
+      <p className="text-amber-400/90 text-xs mb-2">
+        Could not embed — paste the post URL (not embed HTML)
+      </p>
+      <p className="text-zinc-400 text-sm">{label}</p>
+      <a
+        href={openUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-violet-400 hover:text-violet-300 text-sm flex items-center gap-1 mt-2"
+      >
+        View original <ExternalLink className="w-3 h-3" />
+      </a>
+    </div>
+  );
+
   const renderContent = () => {
+    const title = content.title || 'Untitled';
+
     switch (content.type.toLowerCase()) {
       case 'youtube': {
         const embedUrl = getYouTubeEmbedUrl(content.link);
-        if (embedUrl) {
-          return (
-            <div className="relative w-full h-48 bg-black/40 rounded-lg overflow-hidden mb-4 border border-white/10">
-              <iframe
-                src={embedUrl}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={content.title || 'YouTube video'}
-              />
-            </div>
-          );
-        }
-        break;
+        return embedUrl ? (
+          <EmbedFrame src={embedUrl} title={title} heightClass="h-48 sm:h-52" />
+        ) : renderFallback('YouTube video');
       }
-      case 'instagram': {
-        const embedUrl = getInstagramEmbedUrl(content.link);
-        if (embedUrl) {
-          return (
-            <div className="relative w-full h-64 sm:h-80 bg-black/40 rounded-lg overflow-hidden mb-4 border border-white/10">
-              <iframe
-                src={embedUrl}
-                className="w-full h-full"
-                allowFullScreen
-                title={content.title || 'Instagram post'}
-              />
-            </div>
-          );
-        }
-        break;
+      case 'twitter': {
+        const embedUrl = getTwitterEmbedUrl(content.link);
+        return embedUrl ? (
+          <EmbedFrame src={embedUrl} title={title} heightClass="h-[420px] sm:h-[480px]" />
+        ) : renderFallback('Twitter / X post');
       }
       case 'linkedin': {
         const embedUrl = getLinkedInEmbedUrl(content.link);
-        if (embedUrl) {
-          return (
-            <div className="relative w-full h-72 sm:h-96 bg-black/40 rounded-lg overflow-hidden mb-4 border border-white/10">
-              <iframe
-                src={embedUrl}
-                className="w-full h-full"
-                allowFullScreen
-                title={content.title || 'LinkedIn post'}
-              />
-            </div>
-          );
-        }
-        return (
-          <div className="relative w-full bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-            <p className="text-zinc-400 text-sm">LinkedIn Post</p>
-            <a
-              href={content.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-violet-400 hover:text-violet-300 text-sm flex items-center gap-1 mt-2"
-            >
-              View on LinkedIn <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        );
+        return embedUrl ? (
+          <EmbedFrame src={embedUrl} title={title} heightClass="h-[480px] sm:h-[520px]" />
+        ) : renderFallback('LinkedIn post');
       }
-      case 'twitter':
-        return (
-          <div className="relative w-full bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-            <p className="text-zinc-400 text-sm">Twitter Post</p>
-            <a
-              href={content.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-violet-400 hover:text-violet-300 text-sm flex items-center gap-1 mt-2"
-            >
-              View on Twitter <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        );
+      case 'instagram': {
+        const embedUrl = getInstagramEmbedUrl(content.link);
+        return embedUrl ? (
+          <EmbedFrame src={embedUrl} title={title} heightClass="h-80 sm:h-96" />
+        ) : renderFallback('Instagram post');
+      }
       case 'note':
         return (
           <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
             <p className="text-zinc-300 text-sm whitespace-pre-wrap line-clamp-6">{content.link}</p>
           </div>
         );
+      default:
+        return null;
     }
-    return null;
   };
 
   const handleConfirmDelete = async () => {
@@ -158,7 +139,19 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
 
   return (
     <>
-      <div className="bg-white/[0.03] rounded-xl border border-white/10 p-4 sm:p-6 hover:border-violet-500/30 hover:bg-violet-500/5 transition-all group">
+      <div
+        className={`bg-white/[0.03] rounded-xl border border-white/10 p-4 sm:p-6 hover:border-violet-500/30 hover:bg-violet-500/5 transition-all group ${isNote ? 'cursor-pointer' : ''}`}
+        onClick={isNote ? () => setShowNoteModal(true) : undefined}
+        role={isNote ? 'button' : undefined}
+        tabIndex={isNote ? 0 : undefined}
+        onKeyDown={
+          isNote
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') setShowNoteModal(true);
+              }
+            : undefined
+        }
+      >
         <div className="flex items-start justify-between mb-4 gap-2">
           <div className={`p-3 bg-gradient-to-br ${getTypeColor(content.type)} rounded-lg shadow-sm border border-white/10 shrink-0`}>
             {getTypeIcon(content.type)}
@@ -180,19 +173,21 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
           {content.title || 'Untitled'}
         </h3>
 
-        {content.type !== 'note' && (
-          <p className="text-sm text-zinc-500 mb-4 line-clamp-2 break-all">
-            {content.link}
-          </p>
+        {content.type !== 'note' && !hideRawLink && (
+          <p className="text-sm text-zinc-500 mb-4 line-clamp-2 break-all">{displayLink}</p>
+        )}
+
+        {content.type !== 'note' && hideRawLink && (
+          <p className="text-xs text-zinc-500 mb-4 truncate">{displayLink}</p>
         )}
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full capitalize">
             {content.type}
           </span>
-          {content.type !== 'note' && (
+          {!isNote && (
             <a
-              href={content.link}
+              href={openUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-violet-400 hover:text-violet-300 transition-colors text-sm font-medium"
@@ -201,8 +196,55 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
               <ExternalLink className="w-3 h-3" />
             </a>
           )}
+          {isNote && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNoteModal(true);
+              }}
+              className="flex items-center gap-1 text-violet-400 hover:text-violet-300 transition-colors text-sm font-medium"
+            >
+              Open
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
+
+      {showNoteModal && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[70]"
+          onClick={() => setShowNoteModal(false)}
+        >
+          <DarkCard
+            className="max-w-2xl w-full p-4 sm:p-6"
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="min-w-0">
+                <p className="text-xs text-zinc-400 mb-1">Note</p>
+                <h3 className="text-xl font-bold text-white break-words">
+                  {content.title || 'Untitled'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowNoteModal(false)}
+                className="p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-all shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-[60vh] overflow-auto">
+              <p className="text-zinc-200 text-sm whitespace-pre-wrap break-words">
+                {noteText}
+              </p>
+            </div>
+          </DarkCard>
+        </div>
+      )}
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">

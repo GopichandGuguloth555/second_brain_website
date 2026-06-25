@@ -1,26 +1,86 @@
-export function getYouTubeEmbedUrl(url: string): string | null {
-  const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1];
+/** Extract the first URL from pasted embed HTML or return trimmed input */
+export function normalizeContentLink(input: string): string {
+  const trimmed = input.trim();
+  if (trimmed.includes('<') || trimmed.includes('&lt;')) {
+    const hrefMatch = trimmed.match(/href=["'](https?:\/\/[^"']+)["']/i);
+    if (hrefMatch) return hrefMatch[1];
+    const urlMatch = trimmed.match(/https?:\/\/[^\s"'<>]+/i);
+    if (urlMatch) return urlMatch[0].replace(/&amp;/g, '&');
+  }
+  return trimmed;
+}
+
+export function getYouTubeEmbedUrl(input: string): string | null {
+  const link = normalizeContentLink(input);
+  const videoId = link.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1];
   return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
 }
 
-export function getInstagramEmbedUrl(url: string): string | null {
-  const postMatch = url.match(/instagram\.com\/p\/([A-Za-z0-9_-]+)/);
+export function getTwitterTweetId(input: string): string | null {
+  const link = normalizeContentLink(input);
+  const match =
+    link.match(/(?:twitter|x)\.com\/[^/]+\/status\/(\d+)/i) ||
+    link.match(/status\/(\d+)/);
+  return match?.[1] ?? null;
+}
+
+export function getTwitterEmbedUrl(input: string): string | null {
+  const tweetId = getTwitterTweetId(input);
+  if (!tweetId) return null;
+  return `https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&theme=dark&dnt=true`;
+}
+
+export function getInstagramEmbedUrl(input: string): string | null {
+  const link = normalizeContentLink(input);
+  const postMatch = link.match(/instagram\.com\/p\/([A-Za-z0-9_-]+)/);
   if (postMatch) return `https://www.instagram.com/p/${postMatch[1]}/embed`;
-  const reelMatch = url.match(/instagram\.com\/reel\/([A-Za-z0-9_-]+)/);
+  const reelMatch = link.match(/instagram\.com\/reel\/([A-Za-z0-9_-]+)/);
   if (reelMatch) return `https://www.instagram.com/reel/${reelMatch[1]}/embed`;
   return null;
 }
 
-export function getLinkedInEmbedUrl(url: string): string | null {
-  const urnMatch = url.match(/urn:li:activity:(\d+)/);
-  if (urnMatch) {
-    return `https://www.linkedin.com/embed/feed/update/urn:li:activity:${urnMatch[1]}`;
+export function getLinkedInEmbedUrl(input: string): string | null {
+  const link = normalizeContentLink(input);
+
+  const iframeMatch = input.match(/src=["'](https:\/\/www\.linkedin\.com\/embed\/[^"']+)["']/i);
+  if (iframeMatch) return iframeMatch[1].replace(/&amp;/g, '&');
+
+  if (link.includes('linkedin.com/embed/')) {
+    return link.split(/[\s"']/)[0];
   }
-  const activityMatch = url.match(/activity-(\d+)/);
+
+  const urnMatch = link.match(/urn:li:(activity|share|ugcPost):(\d+)/);
+  if (urnMatch) {
+    return `https://www.linkedin.com/embed/feed/update/urn:li:${urnMatch[1]}:${urnMatch[2]}`;
+  }
+
+  const activityMatch = link.match(/activity-(\d+)/);
   if (activityMatch) {
     return `https://www.linkedin.com/embed/feed/update/urn:li:activity:${activityMatch[1]}`;
   }
+
+  const feedMatch = link.match(/linkedin\.com\/feed\/update\/(urn:li:[^/?#\s]+)/);
+  if (feedMatch) {
+    return `https://www.linkedin.com/embed/feed/update/${feedMatch[1]}`;
+  }
+
   return null;
+}
+
+export function getOpenUrl(input: string): string {
+  const normalized = normalizeContentLink(input);
+  if (normalized.startsWith('http')) return normalized;
+  return input;
+}
+
+export function getDisplayLink(input: string): string {
+  const open = getOpenUrl(input);
+  if (open.length > 80) return `${open.slice(0, 77)}...`;
+  return open;
+}
+
+export function isEmbedHtml(input: string): boolean {
+  return input.trim().includes('<') || input.includes('blockquote') || input.includes('&lt;');
 }
 
 export function getLinkPlaceholder(type: string): string {
@@ -28,9 +88,9 @@ export function getLinkPlaceholder(type: string): string {
     case 'youtube':
       return 'https://youtube.com/watch?v=...';
     case 'twitter':
-      return 'https://twitter.com/user/status/... or https://x.com/user/status/...';
+      return 'Paste tweet URL (not embed HTML): https://x.com/user/status/...';
     case 'linkedin':
-      return 'https://www.linkedin.com/posts/username_activity-...';
+      return 'Paste post URL: https://www.linkedin.com/posts/...activity-...';
     case 'instagram':
       return 'https://www.instagram.com/p/... or /reel/...';
     default:

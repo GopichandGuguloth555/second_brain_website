@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Brain,
   ArrowRight,
@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { LinkedInIcon, InstagramIcon, TwitterIcon } from '../lib/contentTypes';
 
 const NAV_LINKS = ['Features', 'How it Works', 'Sharing'];
@@ -69,17 +70,32 @@ const HOW_IT_WORKS = [
 
 const EMBED_GUIDES = [
   {
+    platform: 'YouTube',
+    icon: Youtube,
+    color: 'text-red-400',
+    border: 'border-red-500/20 bg-red-500/5',
+    steps: [
+      'Open the YouTube video you want to save.',
+      'Copy the URL from your browser address bar (or tap Share → Copy link).',
+      'In Second Brain, choose YouTube as the content type and paste the URL.',
+      'The video will appear as an embedded player on your dashboard — just like on YouTube.',
+    ],
+    example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    tip: 'Paste the watch URL only — no embed code needed.',
+  },
+  {
     platform: 'Twitter / X',
     icon: TwitterIcon,
     color: 'text-sky-400',
     border: 'border-sky-500/20 bg-sky-500/5',
     steps: [
-      'Open the tweet you want to save on twitter.com or x.com.',
-      'Click the share icon on the tweet and select "Copy link to post".',
-      'In Second Brain, choose Twitter as the content type and paste the URL.',
-      'The tweet will be saved and linked — click Open to view it on X.',
+      'Open the tweet on twitter.com or x.com.',
+      'Click the share icon and choose "Copy link to post".',
+      'In Second Brain, choose Twitter and paste that URL.',
+      'The tweet will embed on your dashboard — do not paste embed HTML from X.',
     ],
     example: 'https://x.com/username/status/1234567890123456789',
+    tip: 'Use the post URL, not the "Embed post" HTML code.',
   },
   {
     platform: 'LinkedIn',
@@ -88,11 +104,12 @@ const EMBED_GUIDES = [
     border: 'border-blue-500/20 bg-blue-500/5',
     steps: [
       'Open the LinkedIn post you want to save.',
-      'Click the three dots (•••) on the post and select "Copy link to post".',
-      'In Second Brain, choose LinkedIn as the content type and paste the URL.',
-      'The post will embed automatically if the link contains an activity ID.',
+      'Click ••• on the post and select "Copy link to post".',
+      'In Second Brain, choose LinkedIn and paste that URL.',
+      'The post will embed on your dashboard if the link includes an activity ID.',
     ],
     example: 'https://www.linkedin.com/posts/username_activity-7123456789012345678-AbCd',
+    tip: 'Use "Copy link to post" — not the embed iframe code.',
   },
   {
     platform: 'Instagram',
@@ -102,18 +119,24 @@ const EMBED_GUIDES = [
     steps: [
       'Open the Instagram post or reel in your browser.',
       'Copy the URL from the address bar (must include /p/ or /reel/).',
-      'In Second Brain, choose Instagram as the content type and paste the link.',
+      'In Second Brain, choose Instagram and paste the link.',
       'The post will display as an embedded preview on your dashboard.',
     ],
-    example: 'https://www.instagram.com/p/ABC123xyz/ or /reel/ABC123xyz/',
+    example: 'https://www.instagram.com/p/ABC123xyz/',
+    tip: 'Works with public posts and reels only.',
   },
 ];
 
 export const LandingPage = () => {
+  const { clearSession } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cookieAccepted, setCookieAccepted] = useState(
     () => localStorage.getItem('cookies-accepted') === 'true'
   );
+
+  useEffect(() => {
+    clearSession();
+  }, [clearSession]);
 
   const acceptCookies = () => {
     localStorage.setItem('cookies-accepted', 'true');
@@ -302,12 +325,17 @@ export const LandingPage = () => {
           </div>
 
           <div className="text-center mb-10 px-2">
-            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">How to embed Twitter, LinkedIn & Instagram</h3>
-            <p className="text-zinc-400 text-sm">Follow these steps to save social posts to your brain</p>
+            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+              How to add YouTube, Twitter, LinkedIn & Instagram
+            </h3>
+            <p className="text-zinc-400 text-sm max-w-2xl mx-auto">
+              Paste the <span className="text-white">post or video URL</span> from your browser — not embed HTML.
+              Second Brain will show a live preview on your dashboard.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {EMBED_GUIDES.map(({ platform, icon: Icon, color, border, steps, example }) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {EMBED_GUIDES.map(({ platform, icon: Icon, color, border, steps, example, tip }) => (
               <div key={platform} className={`rounded-2xl border p-6 ${border}`}>
                 <div className="flex items-center gap-3 mb-4">
                   <Icon className={`w-6 h-6 ${color}`} />
@@ -323,6 +351,11 @@ export const LandingPage = () => {
                     </li>
                   ))}
                 </ol>
+                {tip && (
+                  <p className="text-xs text-amber-400/90 mb-3 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    Tip: {tip}
+                  </p>
+                )}
                 <div className="bg-black/30 rounded-lg p-3 border border-white/5">
                   <p className="text-[10px] uppercase tracking-wide text-zinc-500 mb-1">Example URL</p>
                   <p className="text-xs text-zinc-400 font-mono break-all">{example}</p>

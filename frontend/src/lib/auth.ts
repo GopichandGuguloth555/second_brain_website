@@ -47,7 +47,14 @@ export function isAuthError(status: number, message?: string, requestUrl?: strin
   if (status !== 401 && status !== 403) return false;
 
   const url = requestUrl || '';
-  if (url.includes('/login') || url.includes('/signup')) return false;
+  if (
+    url.includes('/login') ||
+    url.includes('/signup') ||
+    url.includes('/auth/google') ||
+    url.includes('/auth/demo')
+  ) {
+    return false;
+  }
 
   const token = getToken();
   if (!token) return false;

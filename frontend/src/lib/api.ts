@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getToken, triggerSessionExpired, isAuthError } from './auth';
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -33,6 +33,12 @@ api.interceptors.response.use(
   }
 );
 
+export interface AuthConfig {
+  googleEnabled: boolean;
+  demoEnabled: boolean;
+  sessionExpiryMinutes: number;
+}
+
 export interface Content {
   _id: string;
   title: string;
@@ -49,6 +55,11 @@ export interface SharedBrain {
   content: Content[];
 }
 
+export const getAuthConfig = async (): Promise<AuthConfig> => {
+  const response = await axios.get(`${API_BASE_URL}/auth/config`);
+  return response.data;
+};
+
 export const signup = async (userName: string, password: string) => {
   const response = await api.post('/signup', { userName, password });
   return response.data;
@@ -56,6 +67,16 @@ export const signup = async (userName: string, password: string) => {
 
 export const login = async (userName: string, password: string) => {
   const response = await api.post('/login', { userName, password });
+  return response.data;
+};
+
+export const googleLogin = async (credential: string) => {
+  const response = await api.post('/auth/google', { credential });
+  return response.data;
+};
+
+export const demoLogin = async () => {
+  const response = await api.post('/auth/demo');
   return response.data;
 };
 

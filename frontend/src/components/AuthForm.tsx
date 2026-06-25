@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { LogIn, UserPlus, Brain, ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LogIn, UserPlus, Brain, ArrowLeft, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { login, signup } from '../lib/api';
+import { login, signup, googleLogin, demoLogin, getAuthConfig } from '../lib/api';
+import type { AuthConfig } from '../lib/api';
+import { GoogleSignInButton } from './GoogleSignInButton';
 import { PageShell, DarkCard, inputDark, LoadingOverlay } from './ui/theme';
 
 interface AuthFormProps {
@@ -17,6 +19,18 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
+
+  useEffect(() => {
+    getAuthConfig().then(setAuthConfig).catch(() => {
+      setAuthConfig({ googleEnabled: false, demoEnabled: false, sessionExpiryMinutes: 30 });
+    });
+  }, []);
+
+  const finishLogin = (token: string) => {
+    onLogin(token);
+    navigate('/dashboard', { replace: true });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,13 +40,11 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
     try {
       if (isLogin) {
         const data = await login(userName, password);
-        onLogin(data.token);
-        navigate('/dashboard');
+        finishLogin(data.token);
       } else {
         await signup(userName, password);
         const data = await login(userName, password);
-        onLogin(data.token);
-        navigate('/dashboard');
+        finishLogin(data.token);
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -45,9 +57,40 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
     }
   };
 
+  const handleGoogleSuccess = async (credential: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      const data = await googleLogin(credential);
+      finishLogin(data.token);
+    } catch {
+      setError('Google sign-in failed. Make sure GOOGLE_CLIENT_ID is set in backend/.env too.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const data = await demoLogin();
+      finishLogin(data.token);
+    } catch {
+      setError('Demo login is not available.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showDemo = authConfig?.demoEnabled ?? true;
+
   return (
     <PageShell>
-      <LoadingOverlay show={loading} message={isLogin ? 'Logging in...' : 'Creating your account...'} />
+      <LoadingOverlay
+        show={loading}
+        message={isLogin ? 'Signing you in...' : 'Creating your account...'}
+      />
 
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-md">
@@ -65,6 +108,7 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Second Brain</h1>
             <p className="text-zinc-400 text-sm sm:text-base">Your personal knowledge repository</p>
+            <p className="text-xs text-violet-400/80 mt-2">Sessions expire after 30 minutes for security</p>
           </div>
 
           <DarkCard className="p-6 sm:p-8">
@@ -89,6 +133,32 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
               >
                 Sign Up
               </Link>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <GoogleSignInButton
+                label={isLogin ? 'signin' : 'signup'}
+                onSuccess={handleGoogleSuccess}
+                onError={setError}
+              />
+
+              {showDemo && (
+                <button
+                  type="button"
+                  onClick={handleDemoLogin}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Try Demo Account
+                </button>
+              )}
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-zinc-500">or continue with email</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
