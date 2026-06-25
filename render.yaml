@@ -1,0 +1,50 @@
+# Render Blueprint — deploy BOTH services from this repo.
+# Dashboard: New → Blueprint → connect this repo, or create two services manually (settings below).
+#
+# Manual setup if you prefer the UI:
+#   Backend (Web Service): Root Directory = backend
+#   Frontend (Static Site): Root Directory = frontend
+
+services:
+  - type: web
+    name: second-brain-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: DEMO_USER_ENABLED
+        value: "true"
+      - key: DEMO_USER_USERNAME
+        value: demo
+      - key: DEMO_USER_PASSWORD
+        sync: false
+
+  - type: web
+    name: second-brain-frontend
+    runtime: static
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false

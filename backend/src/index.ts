@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { userModel, contentModel, linkModel } from './db';
-import { FRONTEND_URL, PORT } from './config';
+import { userModel, contentModel, linkModel, connectDb } from './db';
+import { FRONTEND_URL, PORT, getAllowedOrigins } from './config';
 import { userMiddleware } from './middlewares';
 import { Random } from './utils';
 import { signToken, seedDemoUser, loginDemoUser, verifyGoogleAndLogin } from './auth';
@@ -11,10 +11,22 @@ import cors from "cors";
 const app = express();
 app.use(express.json());
 
+const allowedOrigins = getAllowedOrigins();
+
 app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+  credentials: true,
 }));
+
+app.get('/api/v1/health', (_req, res) => {
+  res.json({ status: 'ok', frontendUrl: FRONTEND_URL });
+});
 
 app.get('/api/v1/auth/config', (_req, res) => {
   res.json({
@@ -211,12 +223,20 @@ app.get("/api/v1/brain/:sharelink", async (req, res) => {
 });
 
 async function start() {
-  await seedDemoUser();
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    if (DEMO_USER_ENABLED) console.log('Demo user enabled');
-    if (GOOGLE_CLIENT_ID) console.log('Google login enabled');
-  });
+  try {
+    await connectDb();
+    console.log('Connected to MongoDB');
+    await seedDemoUser();
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
+      if (DEMO_USER_ENABLED) console.log('Demo user enabled');
+      if (GOOGLE_CLIENT_ID) console.log('Google login enabled');
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
 }
 
 start();

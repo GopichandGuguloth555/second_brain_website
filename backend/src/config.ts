@@ -11,3 +11,7 @@ export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 export const DEMO_USER_ENABLED = process.env.DEMO_USER_ENABLED === 'true';
 export const DEMO_USER_USERNAME = process.env.DEMO_USER_USERNAME || 'demo';
 export const DEMO_USER_PASSWORD = process.env.DEMO_USER_PASSWORD || 'demo12345';
+
+export function getAllowedOrigins(): string[] {
+  return FRONTEND_URL.split(',').map((url) => url.trim()).filter(Boolean);
+}

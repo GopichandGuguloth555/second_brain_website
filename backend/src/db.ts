@@ -2,7 +2,9 @@ import { model, Schema } from "mongoose";
 import mongoose from "mongoose";
 import { MONGODB_URI } from './config';
 
-mongoose.connect(MONGODB_URI);
+export async function connectDb(): Promise<void> {
+  await mongoose.connect(MONGODB_URI);
+}
 
 const userSchema = new Schema({
   userName: { type: String, unique: true, required: true },

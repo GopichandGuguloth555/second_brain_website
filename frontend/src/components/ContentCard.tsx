@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ExternalLink, Video, FileText, Link as LinkIcon, Trash2, AlertTriangle, X } from 'lucide-react';
+import { useState } from 'react';
+import { ExternalLink, Video, FileText, Link as LinkIcon, Trash2, AlertTriangle } from 'lucide-react';
 import {
   getYouTubeEmbedUrl,
   getTwitterEmbedUrl,
@@ -28,13 +28,10 @@ interface ContentCardProps {
 export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
 
   const openUrl = getOpenUrl(content.link);
   const displayLink = getDisplayLink(content.link);
   const hideRawLink = content.type !== 'note' && isEmbedHtml(content.link);
-  const isNote = content.type.toLowerCase() === 'note';
-  const noteText = useMemo(() => (isNote ? content.link : ''), [content.link, isNote]);
 
   const getTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -139,19 +136,7 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
 
   return (
     <>
-      <div
-        className={`bg-white/[0.03] rounded-xl border border-white/10 p-4 sm:p-6 hover:border-violet-500/30 hover:bg-violet-500/5 transition-all group ${isNote ? 'cursor-pointer' : ''}`}
-        onClick={isNote ? () => setShowNoteModal(true) : undefined}
-        role={isNote ? 'button' : undefined}
-        tabIndex={isNote ? 0 : undefined}
-        onKeyDown={
-          isNote
-            ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') setShowNoteModal(true);
-              }
-            : undefined
-        }
-      >
+      <div className="bg-white/[0.03] rounded-xl border border-white/10 p-4 sm:p-6 hover:border-violet-500/30 hover:bg-violet-500/5 transition-all group">
         <div className="flex items-start justify-between mb-4 gap-2">
           <div className={`p-3 bg-gradient-to-br ${getTypeColor(content.type)} rounded-lg shadow-sm border border-white/10 shrink-0`}>
             {getTypeIcon(content.type)}
@@ -185,7 +170,7 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
           <span className="text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full capitalize">
             {content.type}
           </span>
-          {!isNote && (
+          {content.type !== 'note' && (
             <a
               href={openUrl}
               target="_blank"
@@ -196,55 +181,8 @@ export const ContentCard = ({ content, onDelete }: ContentCardProps) => {
               <ExternalLink className="w-3 h-3" />
             </a>
           )}
-          {isNote && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowNoteModal(true);
-              }}
-              className="flex items-center gap-1 text-violet-400 hover:text-violet-300 transition-colors text-sm font-medium"
-            >
-              Open
-              <ExternalLink className="w-3 h-3" />
-            </button>
-          )}
         </div>
       </div>
-
-      {showNoteModal && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[70]"
-          onClick={() => setShowNoteModal(false)}
-        >
-          <DarkCard
-            className="max-w-2xl w-full p-4 sm:p-6"
-            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="min-w-0">
-                <p className="text-xs text-zinc-400 mb-1">Note</p>
-                <h3 className="text-xl font-bold text-white break-words">
-                  {content.title || 'Untitled'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowNoteModal(false)}
-                className="p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-all shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-[60vh] overflow-auto">
-              <p className="text-zinc-200 text-sm whitespace-pre-wrap break-words">
-                {noteText}
-              </p>
-            </div>
-          </DarkCard>
-        </div>
-      )}
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
