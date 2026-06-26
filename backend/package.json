@@ -1,8 +1,11 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Second Brain API",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "ts-node src/index.ts",
     "build": "tsc",

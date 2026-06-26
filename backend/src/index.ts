@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { connectDB, userModel, contentModel, linkModel } from './db';
-import { FRONTEND_URL, PORT, validateProductionConfig } from './config';
+import { getAllowedOrigins, PORT, validateProductionConfig, isCloudDeploy } from './config';
 import { userMiddleware } from './middlewares';
 import { Random } from './utils';
 import { signToken, seedDemoUser, loginDemoUser, verifyGoogleAndLogin } from './auth';
@@ -11,10 +11,22 @@ import cors from "cors";
 const app = express();
 app.use(express.json());
 
+const allowedOrigins = getAllowedOrigins();
+
 app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+  credentials: true,
 }));
+
+app.get('/api/v1/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 app.get('/api/v1/auth/config', (_req, res) => {
   res.json({
@@ -211,7 +223,7 @@ app.get("/api/v1/brain/:sharelink", async (req, res) => {
 });
 
 async function start() {
-  if (process.env.NODE_ENV === 'production') {
+  if (isCloudDeploy) {
     validateProductionConfig();
   }
 
@@ -223,8 +235,9 @@ async function start() {
     process.exit(1);
   }
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
     if (DEMO_USER_ENABLED) console.log('Demo user enabled');
     if (GOOGLE_CLIENT_ID) console.log('Google login enabled');
   });

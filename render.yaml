@@ -1,0 +1,50 @@
+# Render Blueprint — Second Brain
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ── Backend API ──────────────────────────────────────────────
+  - type: web
+    name: second-brain-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEMO_USER_ENABLED
+        value: "false"
+      - key: SESSION_EXPIRY
+        value: 30m
+      # Set these manually in the Render dashboard after deploy:
+      - key: MONGODB_URI
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+  # ── Frontend (static site) ───────────────────────────────────
+  - type: web
+    name: second-brain-web
+    runtime: static
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    envVars:
+      # Example: https://second-brain-api.onrender.com/api/v1
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false

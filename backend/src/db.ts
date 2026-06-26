@@ -3,7 +3,9 @@ import mongoose from 'mongoose';
 import { MONGODB_URI } from './config';
 
 export async function connectDB(): Promise<void> {
-  await mongoose.connect(MONGODB_URI);
+  await mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 15000,
+  });
   console.log('MongoDB connected');
 }
 
