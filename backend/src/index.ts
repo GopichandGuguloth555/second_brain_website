@@ -1,28 +1,33 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import { connectDB, userModel, contentModel, linkModel } from './db';
 import { getAllowedOrigins, PORT, validateProductionConfig, isCloudDeploy } from './config';
 import { userMiddleware } from './middlewares';
 import { Random } from './utils';
 import { signToken, seedDemoUser, loginDemoUser, verifyGoogleAndLogin } from './auth';
 import { DEMO_USER_ENABLED, GOOGLE_CLIENT_ID } from './config';
-import cors from "cors";
+import cors, { CorsOptions } from "cors";
 
 const app = express();
 app.use(express.json());
 
 const allowedOrigins = getAllowedOrigins();
 
-app.use(cors({
-  origin(origin, callback) {
+const corsOptions: CorsOptions = {
+  origin: (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void
+  ) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
+
     callback(null, false);
   },
   credentials: true,
-}));
+};
+
+app.use(cors(corsOptions));
 
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
