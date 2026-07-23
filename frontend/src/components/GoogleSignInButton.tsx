@@ -1,9 +1,11 @@
 import { GoogleLogin } from '@react-oauth/google';
+import { useGoogleClientId } from '../hooks/useGoogleClientId';
 
 interface GoogleSignInButtonProps {
   onSuccess: (credential: string) => void;
   onError: (message: string) => void;
   label?: 'signin' | 'signup';
+  disabled?: boolean;
 }
 
 const GoogleIcon = () => (
@@ -15,8 +17,13 @@ const GoogleIcon = () => (
   </svg>
 );
 
-export const GoogleSignInButton = ({ onSuccess, onError, label = 'signin' }: GoogleSignInButtonProps) => {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+export const GoogleSignInButton = ({
+  onSuccess,
+  onError,
+  label = 'signin',
+  disabled = false,
+}: GoogleSignInButtonProps) => {
+  const clientId = useGoogleClientId();
   const text = label === 'signup' ? 'signup_with' : 'signin_with';
 
   if (!clientId) {
@@ -25,7 +32,7 @@ export const GoogleSignInButton = ({ onSuccess, onError, label = 'signin' }: Goo
         type="button"
         onClick={() =>
           onError(
-            'Google login is not configured yet. Add VITE_GOOGLE_CLIENT_ID to frontend/.env and restart the dev server.'
+            'Google login is not configured. Add GOOGLE_CLIENT_ID to backend/.env (and restart backend), or set VITE_GOOGLE_CLIENT_ID in frontend/.env.'
           )
         }
         className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-lg bg-white text-zinc-800 hover:bg-zinc-100 transition-all text-sm font-medium shadow-sm"
@@ -37,7 +44,9 @@ export const GoogleSignInButton = ({ onSuccess, onError, label = 'signin' }: Goo
   }
 
   return (
-    <div className="w-full flex justify-center overflow-hidden rounded-lg [&>div]:!w-full [&_iframe]:!w-full">
+    <div
+      className={`w-full flex justify-center overflow-hidden rounded-lg [&>div]:!w-full [&_iframe]:!w-full ${disabled ? 'pointer-events-none opacity-50' : ''}`}
+    >
       <GoogleLogin
         onSuccess={(res) => {
           if (res.credential) onSuccess(res.credential);

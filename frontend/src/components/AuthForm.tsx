@@ -22,9 +22,16 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
   const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
 
   useEffect(() => {
-    getAuthConfig().then(setAuthConfig).catch(() => {
-      setAuthConfig({ googleEnabled: false, demoEnabled: false, sessionExpiryMinutes: 30 });
-    });
+    getAuthConfig()
+      .then(setAuthConfig)
+      .catch(() => {
+        setAuthConfig({
+          googleEnabled: false,
+          googleClientId: null,
+          demoEnabled: false,
+          sessionExpiryMinutes: 30,
+        });
+      });
   }, []);
 
   const finishLogin = (token: string) => {
@@ -63,8 +70,16 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
     try {
       const data = await googleLogin(credential);
       finishLogin(data.token);
-    } catch {
-      setError('Google sign-in failed. Make sure GOOGLE_CLIENT_ID is set in backend/.env too.');
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (!err.response) {
+          setError('Cannot reach the backend. Start it with: cd backend && npm run dev');
+        } else {
+          setError(err.response.data?.message || 'Google sign-in failed.');
+        }
+      } else {
+        setError('Google sign-in failed.');
+      }
     } finally {
       setLoading(false);
     }
@@ -84,6 +99,7 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
   };
 
   const showDemo = authConfig?.demoEnabled ?? true;
+  const showGoogle = authConfig?.googleEnabled ?? Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
   return (
     <PageShell>
@@ -136,11 +152,14 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
             </div>
 
             <div className="space-y-3 mb-6">
-              <GoogleSignInButton
-                label={isLogin ? 'signin' : 'signup'}
-                onSuccess={handleGoogleSuccess}
-                onError={setError}
-              />
+              {showGoogle && (
+                <GoogleSignInButton
+                  label={isLogin ? 'signin' : 'signup'}
+                  onSuccess={handleGoogleSuccess}
+                  onError={setError}
+                  disabled={loading}
+                />
+              )}
 
               {showDemo && (
                 <button

@@ -35,6 +35,7 @@ api.interceptors.response.use(
 
 export interface AuthConfig {
   googleEnabled: boolean;
+  googleClientId: string | null;
   demoEnabled: boolean;
   sessionExpiryMinutes: number;
 }

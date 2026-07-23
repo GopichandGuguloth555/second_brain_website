@@ -36,6 +36,7 @@ app.get('/api/v1/health', (_req, res) => {
 app.get('/api/v1/auth/config', (_req, res) => {
   res.json({
     googleEnabled: Boolean(GOOGLE_CLIENT_ID),
+    googleClientId: GOOGLE_CLIENT_ID || null,
     demoEnabled: DEMO_USER_ENABLED,
     sessionExpiryMinutes: 30,
   });
@@ -89,8 +90,20 @@ app.post('/api/v1/auth/google', async (req, res) => {
   try {
     const token = await verifyGoogleAndLogin(credential);
     res.json({ token });
-  } catch {
-    res.status(401).json({ message: "Google authentication failed" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Google authentication failed';
+
+    if (message === 'Google login is not configured') {
+      res.status(503).json({
+        message: 'Google login is not configured on the server. Set GOOGLE_CLIENT_ID in backend/.env and restart the backend.',
+      });
+      return;
+    }
+
+    console.error('Google auth error:', message);
+    res.status(401).json({
+      message: 'Google sign-in failed. Ensure GOOGLE_CLIENT_ID matches in backend/.env and frontend/.env, then restart both servers.',
+    });
   }
 });
 
