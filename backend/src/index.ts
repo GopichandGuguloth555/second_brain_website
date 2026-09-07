@@ -137,6 +137,41 @@ app.delete("/api/v1/deleteContent", userMiddleware, async (req, res) => {
   }
 });
 
+app.put('/api/v1/updateContent', userMiddleware, async (req, res) => {
+  const contentId = req.body.contentId;
+  const title = req.body.title;
+  const link = req.body.link;
+  const type = req.body.type;
+
+  if (!contentId) {
+    res.status(400).json({ message: "Content ID is required" });
+    return;
+  }
+
+  try {
+    const existing = await contentModel.findOne({
+      _id: contentId,
+      // @ts-ignore
+      userId: req.userId,
+    });
+
+    if (!existing) {
+      res.status(404).json({ message: "Content not found" });
+      return;
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (title !== undefined) updateData.title = title;
+    if (link !== undefined) updateData.link = link;
+    if (type !== undefined) updateData.type = type;
+
+    await contentModel.updateOne({ _id: contentId }, { $set: updateData });
+    res.json({ message: "Content updated successfully" });
+  } catch {
+    res.status(500).json({ error: "Update failed" });
+  }
+});
+
 app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
   const share = req.body.share;
 

@@ -6,6 +6,7 @@ import type { Content } from '../lib/api';
 import { ContentCard } from './ContentCard';
 import { getLinkPlaceholder, LinkedInIcon, InstagramIcon, TwitterIcon } from '../lib/contentTypes';
 import { AppNav, LoadingPage, LoadingOverlay, PageShell, DarkCard, ModalOverlay, btnOutline, btnPrimary, btnDanger, inputDark } from './ui/theme';
+import { NotesModal } from './NotesModal';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -16,6 +17,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
   const [shareHash, setShareHash] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -129,6 +131,10 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
         <button onClick={() => setShowAddModal(true)} disabled={!!actionLoading} className={btnPrimary}>
           <Plus className="w-4 h-4" />
           <span>Add Content</span>
+        </button>
+        <button onClick={() => setShowNotesModal(true)} disabled={!!actionLoading} className={btnOutline}>
+          <FileText className="w-4 h-4" />
+          <span>Notes</span>
         </button>
         <button onClick={handleLogout} disabled={!!actionLoading} className={btnDanger}>
           <LogOut className="w-4 h-4" />
@@ -280,6 +286,13 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
             </div>
           </DarkCard>
         </ModalOverlay>
+      )}
+
+      {showNotesModal && (
+        <NotesModal
+          isOpen={showNotesModal}
+          onClose={() => setShowNotesModal(false)}
+        />
       )}
     </PageShell>
   );

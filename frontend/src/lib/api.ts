@@ -69,8 +69,6 @@ export const login = async (userName: string, password: string) => {
   return response.data;
 };
 
-
-
 export const demoLogin = async () => {
   const response = await api.post('/auth/demo');
   return response.data;
@@ -88,6 +86,11 @@ export const viewContent = async (): Promise<{ content: Content[] }> => {
 
 export const deleteContent = async (contentId: string) => {
   const response = await api.delete('/deleteContent', { data: { contentId } });
+  return response.data;
+};
+
+export const updateContent = async (contentId: string, updates: { title?: string; link?: string; type?: string }) => {
+  const response = await api.put('/updateContent', { contentId, ...updates });
   return response.data;
 };
 
