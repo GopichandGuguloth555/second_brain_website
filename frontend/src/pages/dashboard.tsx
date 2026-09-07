@@ -37,7 +37,7 @@ export function Dashboard() {
                   "Authorization":localStorage.getItem("token")
                  }
             });
-           const shareUrl = `http://localhost:5173/share${response.data.hash}` 
+            const shareUrl = `${window.location.origin}/brain/${response.data.hash}`
            alert("Your Linke Is Ready to Share: "+shareUrl);
           }} startIcon={<ShareIcon />} variant="secondary" text=" Share Content " />
           

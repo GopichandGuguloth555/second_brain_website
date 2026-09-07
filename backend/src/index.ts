@@ -22,7 +22,7 @@ const corsOptions: CorsOptions = {
       return;
     }
 
-    callback(null, false);
+    callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
 };

@@ -18,11 +18,11 @@ export function useContent() {
   }
 
 
-  useEffect(() => {
+   useEffect(() => {
     refresh()
-   let interval = setInterval( ()=>{
-      refresh()
-    }, 10 * 1000 )
+    const interval = setInterval( ()=>{
+       refresh()
+     }, 10 * 1000 )
 
     return () => {
         clearInterval(interval);
