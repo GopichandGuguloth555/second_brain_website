@@ -50,7 +50,6 @@ export function isAuthError(status: number, message?: string, requestUrl?: strin
   if (
     url.includes('/login') ||
     url.includes('/signup') ||
-    url.includes('/auth/google') ||
     url.includes('/auth/demo')
   ) {
     return false;

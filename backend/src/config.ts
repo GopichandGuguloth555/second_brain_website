@@ -27,7 +27,6 @@ export const JWTSECRET =
   process.env.JWT_SECRET || (isCloudDeploy ? '' : 'change-me-in-production');
 
 export const SESSION_EXPIRY = process.env.SESSION_EXPIRY || '30m';
-export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 export const DEMO_USER_ENABLED = process.env.DEMO_USER_ENABLED === 'true';
 export const DEMO_USER_USERNAME = process.env.DEMO_USER_USERNAME || 'demo';
 export const DEMO_USER_PASSWORD = process.env.DEMO_USER_PASSWORD || 'demo12345';

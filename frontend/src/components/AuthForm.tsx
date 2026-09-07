@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { LogIn, UserPlus, Brain, ArrowLeft, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { login, signup, googleLogin, demoLogin, getAuthConfig } from '../lib/api';
+import { login, signup, demoLogin, getAuthConfig } from '../lib/api';
 import type { AuthConfig } from '../lib/api';
-import { GoogleSignInButton } from './GoogleSignInButton';
 import { PageShell, DarkCard, inputDark, LoadingOverlay } from './ui/theme';
 
 interface AuthFormProps {
@@ -26,8 +25,6 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
       .then(setAuthConfig)
       .catch(() => {
         setAuthConfig({
-          googleEnabled: false,
-          googleClientId: null,
           demoEnabled: false,
           sessionExpiryMinutes: 30,
         });
@@ -64,26 +61,7 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
     }
   };
 
-  const handleGoogleSuccess = async (credential: string) => {
-    setError('');
-    setLoading(true);
-    try {
-      const data = await googleLogin(credential);
-      finishLogin(data.token);
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        if (!err.response) {
-          setError('Cannot reach the backend. Start it with: cd backend && npm run dev');
-        } else {
-          setError(err.response.data?.message || 'Google sign-in failed.');
-        }
-      } else {
-        setError('Google sign-in failed.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleDemoLogin = async () => {
     setError('');
@@ -99,7 +77,6 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
   };
 
   const showDemo = authConfig?.demoEnabled ?? true;
-  const showGoogle = authConfig?.googleEnabled ?? Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
   return (
     <PageShell>
@@ -152,15 +129,6 @@ export const AuthForm = ({ onLogin, mode = 'login' }: AuthFormProps) => {
             </div>
 
             <div className="space-y-3 mb-6">
-              {showGoogle && (
-                <GoogleSignInButton
-                  label={isLogin ? 'signin' : 'signup'}
-                  onSuccess={handleGoogleSuccess}
-                  onError={setError}
-                  disabled={loading}
-                />
-              )}
-
               {showDemo && (
                 <button
                   type="button"

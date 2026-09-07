@@ -3,8 +3,8 @@ import { connectDB, userModel, contentModel, linkModel } from './db';
 import { getAllowedOrigins, PORT, validateProductionConfig, isCloudDeploy } from './config';
 import { userMiddleware } from './middlewares';
 import { Random } from './utils';
-import { signToken, seedDemoUser, loginDemoUser, verifyGoogleAndLogin } from './auth';
-import { DEMO_USER_ENABLED, GOOGLE_CLIENT_ID } from './config';
+import { signToken, seedDemoUser, loginDemoUser } from './auth';
+import { DEMO_USER_ENABLED } from './config';
 import cors, { CorsOptions } from "cors";
 
 const app = express();
@@ -35,8 +35,6 @@ app.get('/api/v1/health', (_req, res) => {
 
 app.get('/api/v1/auth/config', (_req, res) => {
   res.json({
-    googleEnabled: Boolean(GOOGLE_CLIENT_ID),
-    googleClientId: GOOGLE_CLIENT_ID || null,
     demoEnabled: DEMO_USER_ENABLED,
     sessionExpiryMinutes: 30,
   });
@@ -79,33 +77,7 @@ app.post('/api/v1/login', async (req, res) => {
   res.status(403).json({ message: "Invalid Credentials!" });
 });
 
-app.post('/api/v1/auth/google', async (req, res) => {
-  const credential = req.body.credential;
 
-  if (!credential) {
-    res.status(400).json({ message: "Google credential is required" });
-    return;
-  }
-
-  try {
-    const token = await verifyGoogleAndLogin(credential);
-    res.json({ token });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Google authentication failed';
-
-    if (message === 'Google login is not configured') {
-      res.status(503).json({
-        message: 'Google login is not configured on the server. Set GOOGLE_CLIENT_ID in backend/.env and restart the backend.',
-      });
-      return;
-    }
-
-    console.error('Google auth error:', message);
-    res.status(401).json({
-      message: 'Google sign-in failed. Ensure GOOGLE_CLIENT_ID matches in backend/.env and frontend/.env, then restart both servers.',
-    });
-  }
-});
 
 app.post('/api/v1/auth/demo', async (_req, res) => {
   try {
@@ -257,7 +229,6 @@ async function start() {
     console.log(`Server running on port ${PORT}`);
     console.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
     if (DEMO_USER_ENABLED) console.log('Demo user enabled');
-    if (GOOGLE_CLIENT_ID) console.log('Google login enabled');
   });
 }
 

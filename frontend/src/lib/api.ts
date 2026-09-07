@@ -34,8 +34,6 @@ api.interceptors.response.use(
 );
 
 export interface AuthConfig {
-  googleEnabled: boolean;
-  googleClientId: string | null;
   demoEnabled: boolean;
   sessionExpiryMinutes: number;
 }
@@ -71,10 +69,7 @@ export const login = async (userName: string, password: string) => {
   return response.data;
 };
 
-export const googleLogin = async (credential: string) => {
-  const response = await api.post('/auth/google', { credential });
-  return response.data;
-};
+
 
 export const demoLogin = async () => {
   const response = await api.post('/auth/demo');

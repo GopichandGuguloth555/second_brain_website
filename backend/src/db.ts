@@ -13,8 +13,7 @@ const userSchema = new Schema({
   userName: { type: String, unique: true, required: true },
   password: { type: String },
   email: { type: String },
-  googleId: { type: String, unique: true, sparse: true },
-  authProvider: { type: String, enum: ['local', 'google', 'demo'], default: 'local' },
+  authProvider: { type: String, enum: ['local', 'demo'], default: 'local' },
 });
 export const userModel = model('User', userSchema);
 

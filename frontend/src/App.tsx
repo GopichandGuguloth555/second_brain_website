@@ -6,7 +6,6 @@ import { SharedBrain } from './components/ShareBrain';
 import { ShareHistory } from './components/ShareHistory';
 import { SessionExpired } from './components/SessionExpired';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { GoogleAuthProvider } from './components/GoogleAuthProvider';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function AppRoutes() {
@@ -44,9 +43,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <GoogleAuthProvider>
-          <AppRoutes />
-        </GoogleAuthProvider>
+        <AppRoutes />
       </AuthProvider>
     </BrowserRouter>
   );
